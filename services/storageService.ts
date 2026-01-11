@@ -1,6 +1,6 @@
 
-import { Restaurant, Reservation } from '../types';
-import { DEFAULT_RESTAURANT } from '../constants';
+import { Restaurant, Reservation } from '../types.ts';
+import { DEFAULT_RESTAURANT } from '../constants.tsx';
 
 const STORAGE_KEYS = {
   RESTAURANTS: 'quicktable_restaurants',

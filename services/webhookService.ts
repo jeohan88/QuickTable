@@ -1,5 +1,5 @@
 
-import { Reservation } from '../types';
+import { Reservation } from '../types.ts';
 
 const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbw0wNzLCC8inds7C4r1K4Oq01-bqaDkFr-cjalCNhvzxkVtLz-ehxoGWjj9rufFEy5x/exec';
 

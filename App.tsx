@@ -1,9 +1,9 @@
 
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { Layout } from './components/Layout';
-import { AdminPanel } from './components/AdminPanel';
-import { CustomerInterface } from './components/CustomerInterface';
+import { Layout } from './components/Layout.tsx';
+import { AdminPanel } from './components/AdminPanel.tsx';
+import { CustomerInterface } from './components/CustomerInterface.tsx';
 import { Utensils, ArrowRight } from 'lucide-react';
 
 const LandingPage: React.FC = () => (

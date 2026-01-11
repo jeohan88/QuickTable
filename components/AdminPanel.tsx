@@ -6,10 +6,10 @@ import {
   XCircle, Filter, Search, Download, Plus, Save, X, MessageSquare
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { storageService } from '../services/storageService';
-import { webhookService } from '../services/webhookService';
-import { Restaurant, Reservation, ReservationStatus } from '../types';
-import { DAYS_OF_WEEK } from '../constants';
+import { storageService } from '../services/storageService.ts';
+import { webhookService } from '../services/webhookService.ts';
+import { Restaurant, Reservation, ReservationStatus } from '../types.ts';
+import { DAYS_OF_WEEK } from '../constants.tsx';
 
 export const AdminPanel: React.FC = () => {
   return (

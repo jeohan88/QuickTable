@@ -6,10 +6,10 @@ import {
   MapPin, Phone, Info, ChevronRight, CheckCircle, User
 } from 'lucide-react';
 import { format, addDays, isBefore, startOfDay, parse } from 'date-fns';
-import { storageService } from '../services/storageService';
-import { webhookService } from '../services/webhookService';
-import { Restaurant, Reservation, TimeSlot, ReservationStatus } from '../types';
-import { DAYS_OF_WEEK } from '../constants';
+import { storageService } from '../services/storageService.ts';
+import { webhookService } from '../services/webhookService.ts';
+import { Restaurant, Reservation, TimeSlot, ReservationStatus } from '../types.ts';
+import { DAYS_OF_WEEK } from '../constants.tsx';
 
 export const CustomerInterface: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
