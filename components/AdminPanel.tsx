@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
 import { 
   Users, Calendar as CalendarIcon, Clock, CheckCircle, 
-  XCircle, Filter, Search, Download, Plus, Save, X, MessageSquare
+  XCircle, Filter, Search, Download, Plus, Save, X, MessageSquare, List
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { storageService } from '../services/storageService.ts';
@@ -37,6 +37,7 @@ const Dashboard: React.FC = () => {
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const todaysReservations = reservations.filter(r => r.date === todayStr);
   const pendingCount = reservations.filter(r => r.status === ReservationStatus.PENDING).length;
+  const totalCount = reservations.length;
 
   return (
     <div className="space-y-8 relative">
@@ -56,7 +57,8 @@ const Dashboard: React.FC = () => {
       </header>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <StatCard icon={<List className="text-stone-500" />} label="Total Bookings" value={totalCount.toString()} />
         <StatCard icon={<Users className="text-blue-500" />} label="Today's Guests" value={todaysReservations.reduce((acc, r) => acc + r.partySize, 0).toString()} />
         <StatCard icon={<CalendarIcon className="text-amber-500" />} label="Today's Bookings" value={todaysReservations.length.toString()} />
         <StatCard icon={<Clock className="text-purple-500" />} label="Pending Requests" value={pendingCount.toString()} />
@@ -72,7 +74,15 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="space-y-4">
             {todaysReservations.length === 0 ? (
-              <p className="text-stone-400 italic text-center py-8">No reservations scheduled for today.</p>
+              <div className="text-center py-12 bg-stone-50 rounded-lg border border-dashed border-stone-200">
+                <p className="text-stone-400 italic">No reservations scheduled for today.</p>
+                <button 
+                  onClick={() => setShowAddModal(true)}
+                  className="mt-2 text-amber-600 text-sm font-bold hover:underline"
+                >
+                  Add a walk-in guest?
+                </button>
+              </div>
             ) : (
               todaysReservations.sort((a, b) => a.time.localeCompare(b.time)).map(r => (
                 <div key={r.id} className="flex items-center justify-between p-4 bg-stone-50 rounded-lg border border-stone-100">
@@ -139,6 +149,7 @@ interface AddReservationModalProps {
 }
 
 const AddReservationModal: React.FC<AddReservationModalProps> = ({ restaurant, onClose, onSuccess }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     customerName: '',
     customerPhone: '',
@@ -151,30 +162,34 @@ const AddReservationModal: React.FC<AddReservationModalProps> = ({ restaurant, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
     
-    const newReservation: Reservation = {
-      id: Math.random().toString(36).substr(2, 9),
-      restaurantId: restaurant.id,
-      customerName: formData.customerName,
-      customerPhone: formData.customerPhone,
-      date: formData.date,
-      time: formData.time,
-      partySize: formData.partySize,
-      specialRequests: formData.specialRequests,
-      status: ReservationStatus.CONFIRMED,
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
+    try {
+      const newReservation: Reservation = {
+        id: Math.random().toString(36).substr(2, 9),
+        restaurantId: restaurant.id,
+        customerName: formData.customerName,
+        customerPhone: formData.customerPhone,
+        date: formData.date,
+        time: formData.time,
+        partySize: formData.partySize,
+        specialRequests: formData.specialRequests,
+        status: ReservationStatus.CONFIRMED,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
 
-    // 1. Save locally
-    storageService.saveReservation(newReservation);
+      // 1. Save locally
+      storageService.saveReservation(newReservation);
 
-    // 2. Sync to Google Sheets
-    await webhookService.sendReservation(newReservation, restaurant.name);
+      // 2. Sync to Google Sheets
+      await webhookService.sendReservation(newReservation, restaurant.name);
 
-    // 3. Optional WhatsApp open
-    if (formData.sendWhatsApp && formData.customerPhone) {
-      const message = `Hello ${formData.customerName}! 🍽️
+      // 3. Optional WhatsApp open
+      if (formData.sendWhatsApp && formData.customerPhone) {
+        const message = `Hello ${formData.customerName}! 🍽️
 
 This is ${restaurant.name}. Your reservation has been confirmed:
 
@@ -184,12 +199,18 @@ This is ${restaurant.name}. Your reservation has been confirmed:
 
 We look forward to seeing you!`;
 
-      const cleanPhone = formData.customerPhone.replace(/\D/g, '');
-      const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-      window.open(waUrl, '_blank');
-    }
+        const cleanPhone = formData.customerPhone.replace(/\D/g, '');
+        const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+        window.open(waUrl, '_blank');
+      }
 
-    onSuccess();
+      onSuccess();
+    } catch (error) {
+      console.error('Error saving reservation:', error);
+      alert('There was an error saving the reservation. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -197,7 +218,7 @@ We look forward to seeing you!`;
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="px-6 py-4 border-b border-stone-100 flex justify-between items-center bg-stone-50">
           <h3 className="text-lg font-bold">New Manual Reservation</h3>
-          <button onClick={onClose} className="p-1 hover:bg-stone-200 rounded-full transition-colors">
+          <button onClick={onClose} disabled={isSubmitting} className="p-1 hover:bg-stone-200 rounded-full transition-colors disabled:opacity-50">
             <X className="w-5 h-5 text-stone-500" />
           </button>
         </div>
@@ -208,9 +229,10 @@ We look forward to seeing you!`;
               <input 
                 required
                 type="text" 
+                disabled={isSubmitting}
                 value={formData.customerName}
                 onChange={e => setFormData({...formData, customerName: e.target.value})}
-                className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none" 
+                className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none disabled:bg-stone-50" 
                 placeholder="John Doe"
               />
             </div>
@@ -219,9 +241,10 @@ We look forward to seeing you!`;
               <input 
                 required
                 type="tel" 
+                disabled={isSubmitting}
                 value={formData.customerPhone}
                 onChange={e => setFormData({...formData, customerPhone: e.target.value})}
-                className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none" 
+                className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none disabled:bg-stone-50" 
                 placeholder="+1 234 567 890"
               />
             </div>
@@ -231,9 +254,10 @@ We look forward to seeing you!`;
                 <input 
                   required
                   type="date" 
+                  disabled={isSubmitting}
                   value={formData.date}
                   onChange={e => setFormData({...formData, date: e.target.value})}
-                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none" 
+                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none disabled:bg-stone-50" 
                 />
               </div>
               <div>
@@ -241,9 +265,10 @@ We look forward to seeing you!`;
                 <input 
                   required
                   type="time" 
+                  disabled={isSubmitting}
                   value={formData.time}
                   onChange={e => setFormData({...formData, time: e.target.value})}
-                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none" 
+                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none disabled:bg-stone-50" 
                 />
               </div>
             </div>
@@ -253,10 +278,11 @@ We look forward to seeing you!`;
                 required
                 type="number" 
                 min="1"
+                disabled={isSubmitting}
                 max={restaurant.tables.capacity * restaurant.tables.count}
                 value={formData.partySize}
                 onChange={e => setFormData({...formData, partySize: parseInt(e.target.value)})}
-                className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none" 
+                className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none disabled:bg-stone-50" 
               />
             </div>
             
@@ -264,6 +290,7 @@ We look forward to seeing you!`;
               <input 
                 type="checkbox" 
                 id="send-wa"
+                disabled={isSubmitting}
                 checked={formData.sendWhatsApp}
                 onChange={e => setFormData({...formData, sendWhatsApp: e.target.checked})}
                 className="w-4 h-4 text-amber-500 focus:ring-amber-500 border-stone-300 rounded"
@@ -278,15 +305,19 @@ We look forward to seeing you!`;
             <button 
               type="button" 
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-stone-300 rounded-lg font-bold text-stone-600 hover:bg-stone-50"
+              disabled={isSubmitting}
+              className="flex-1 px-4 py-2 border border-stone-300 rounded-lg font-bold text-stone-600 hover:bg-stone-50 disabled:opacity-50"
             >
               Cancel
             </button>
             <button 
               type="submit" 
-              className="flex-1 px-4 py-2 bg-stone-900 text-white rounded-lg font-bold hover:bg-black shadow-lg"
+              disabled={isSubmitting}
+              className={`flex-1 px-4 py-2 text-white rounded-lg font-bold shadow-lg transition-all ${
+                isSubmitting ? 'bg-stone-500 cursor-not-allowed' : 'bg-stone-900 hover:bg-black'
+              }`}
             >
-              Save & Send
+              {isSubmitting ? 'Saving...' : 'Save & Send'}
             </button>
           </div>
         </form>
@@ -654,7 +685,7 @@ const StatCard: React.FC<{ icon: React.ReactNode, label: string, value: string }
       {React.isValidElement(icon) && React.cloneElement(icon as React.ReactElement<any>, { className: 'w-6 h-6' })}
     </div>
     <div>
-      <p className="text-sm font-medium text-stone-500 uppercase tracking-wider">{label}</p>
+      <p className="text-xs font-medium text-stone-500 uppercase tracking-wider">{label}</p>
       <p className="text-2xl font-bold text-stone-900">{value}</p>
     </div>
   </div>
